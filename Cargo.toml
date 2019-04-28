@@ -5,3 +5,4 @@ authors = ["Nate Rupsis <nathaniel.rupsis@homeadvisor.com>"]
 edition = "2018"
 
 [dependencies]
+colored = "1.7"
