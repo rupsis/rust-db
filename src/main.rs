@@ -12,6 +12,16 @@ enum PrepareResult {
     PrepareUnrecognized
 }
 
+enum StatementTypes {
+    StatementInsert,
+    StatementSelect,
+    Unknown
+}
+
+struct Statement {
+    statementType: StatementTypes,
+}
+
 
 fn print_prompt() {
     print!("db > ");
@@ -26,11 +36,37 @@ fn process_meta_command(command: &String) -> MetaCommandResult {
     }
 }
 
-// fn process_prepare_statement(command: &String) -> PrepareResult {
-// }
+fn process_prepare_statement(command: &String, statement: &mut Statement) -> PrepareResult {
+    if(command == "insert"){
+        statement.statementType = StatementTypes::StatementInsert;
+        return PrepareResult::PrepareSuccess; 
+    }
+
+    if(command == "select"){
+        statement.statementType = StatementTypes::StatementSelect;
+        return PrepareResult::PrepareSuccess; 
+    }
+
+    return PrepareResult::PrepareUnrecognized;
+}
+
+fn execute_statement(statement: &Statement) {
+ match statement.statementType {
+    StatementTypes::StatementInsert => {
+        println!("This is where we would do an insert");
+    },
+    StatementTypes::StatementSelect => {
+        println!("This is where we would do a select");
+    },
+    StatementTypes::Unknown => {
+        println!("{}! This command is unknown", "Error".red());
+    } 
+  }
+}
+
 
 fn main() {
-    println!("Starting Rust DB");
+    println!("{}", "Starting Rust DB".green());
 
     while(true){
         print_prompt();
@@ -50,5 +86,19 @@ fn main() {
                 },
             }      
         }
+
+        let mut statement = Statement{ statementType: StatementTypes::Unknown};
+
+        match process_prepare_statement(&user_input, &mut statement) {
+            PrepareResult::PrepareSuccess => {
+                println!("This is a prepare statement command");
+            },
+            PrepareResult::PrepareUnrecognized => {
+                println!("Unrecognized keyword at start of {}", user_input.red());
+            },
+        } 
+
+        execute_statement(&statement);
+        println!("{}", "Executed".green());
     }
 }
