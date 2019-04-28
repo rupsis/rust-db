@@ -15,7 +15,14 @@ fn main() {
         let mut user_input = String::new();
         io::stdin().read_line(&mut user_input).expect("error: enable to read input");
 
-        println!("{}", user_input)
+        println!("{}", user_input);
+
+        user_input.truncate(user_input.len() - 1);
+        if (user_input == ".exit"){
+            std::process::exit(0);
+        } else {
+            println!("Unrecognized command {}", user_input)
+        }
     }
 
 }
