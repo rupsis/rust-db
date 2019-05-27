@@ -2,6 +2,23 @@ use std::io;
 use std::io::prelude::*;
 use colored::*;
 
+#[macro_use] extern crate scan_fmt;
+
+const COLUMN_USERNAME_SIZE: usize = 32;
+const COLUMN_EMAIL_SIZE: usize = 255;
+
+struct Row {
+  id: u32,
+  username: String,
+  email: String,
+}
+
+impl Default for Row {
+    fn default () -> Row {
+        Row { id: 0, username: String::from("nate"), email: String::from("test@test.com")}
+    }
+}
+
 enum MetaCommandResult {
     MetaCommandSuccess,
     MetaCommandUnrecognized
@@ -9,7 +26,8 @@ enum MetaCommandResult {
 
 enum PrepareResult {
     PrepareSuccess,
-    PrepareUnrecognized
+    PrepareUnrecognized,
+    PrepareSyntaxError
 }
 
 enum StatementTypes {
@@ -20,6 +38,16 @@ enum StatementTypes {
 
 struct Statement {
     statementType: StatementTypes,
+    row_to_insert: Row,
+}
+
+impl Default for Statement {
+    fn default () -> Statement {
+        Statement{
+            statementType: StatementTypes::Unknown,
+            row_to_insert: Row::default()
+        }
+    }
 }
 
 
@@ -37,12 +65,32 @@ fn process_meta_command(command: &String) -> MetaCommandResult {
 }
 
 fn process_prepare_statement(command: &String, statement: &mut Statement) -> PrepareResult {
-    if(command == "insert"){
+    if(&command[..6] == "insert"){
         statement.statementType = StatementTypes::StatementInsert;
+        let (a, b, c) = scan_fmt_some!(
+            &command, 
+            "insert {d} {} {}", u32, String, String
+            );
+        match (a, b, c) {
+            (Some(a), Some(b), Some(c)) => {
+                statement.row_to_insert.id = a;
+                statement.row_to_insert.username = b;
+                statement.row_to_insert.email = c;
+            }
+            _ => return PrepareResult::PrepareSyntaxError
+        }
+       
         return PrepareResult::PrepareSuccess; 
     }
 
-    if(command == "select"){
+    // +    int args_assigned = sscanf(
+// +        input_buffer->buffer, "insert %d %s %s", &(statement->row_to_insert.id),
+// +        statement->row_to_insert.username, statement->row_to_insert.email);
+// +    if (args_assigned < 3) {
+// +      return PREPARE_SYNTAX_ERROR;
+// +    }
+
+    if(&command[..6] == "select"){
         statement.statementType = StatementTypes::StatementSelect;
         return PrepareResult::PrepareSuccess; 
     }
@@ -61,6 +109,7 @@ fn execute_statement(statement: &Statement) {
     StatementTypes::Unknown => {
         println!("{}! This command is unknown", "Error".red());
     } 
+    
   }
 }
 
@@ -87,7 +136,7 @@ fn main() {
             }      
         }
 
-        let mut statement = Statement{ statementType: StatementTypes::Unknown};
+        let mut statement = Statement::default();;
 
         match process_prepare_statement(&user_input, &mut statement) {
             PrepareResult::PrepareSuccess => {
@@ -96,6 +145,9 @@ fn main() {
             PrepareResult::PrepareUnrecognized => {
                 println!("Unrecognized keyword at start of {}", user_input.red());
             },
+            PrepareResult::PrepareSyntaxError => {
+                println!("Syntax error. Could not parse statement.")
+            }
         } 
 
         execute_statement(&statement);
