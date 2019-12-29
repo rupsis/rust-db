@@ -1,11 +1,44 @@
 use std::io;
 use std::io::prelude::*;
 use colored::*;
+use std::mem::size_of;
 
 #[macro_use] extern crate scan_fmt;
 
+
+/*
+// used for page sizing
+
+#define size_of_attribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
++
++const uint32_t ID_SIZE = size_of_attribute(Row, id);
++const uint32_t USERNAME_SIZE = size_of_attribute(Row, username);
++const uint32_t EMAIL_SIZE = size_of_attribute(Row, email);
++const uint32_t ID_OFFSET = 0;
++const uint32_t USERNAME_OFFSET = ID_OFFSET + ID_SIZE;
++const uint32_t EMAIL_OFFSET = USERNAME_OFFSET + USERNAME_SIZE;
++const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
+*/
+
 const COLUMN_USERNAME_SIZE: usize = 32;
 const COLUMN_EMAIL_SIZE: usize = 255;
+
+
+
+const ROW_SIZE: usize = size_of::<Row>();
+const PAGE_SIZE: usize = 4096;
+const TABLE_MAX_PAGES: usize =  100;
+const ROWS_PER_PAGE: usize = PAGE_SIZE / ROW_SIZE;
+const TABLE_MAX_ROWS: usize = ROWS_PER_PAGE * TABLE_MAX_PAGES;
+
+struct Page {
+
+}
+
+struct Table {
+    num_rows: u32,
+    pages: [Page; 3]
+}
 
 struct Row {
   id: u32,
