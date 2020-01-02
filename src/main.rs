@@ -1,29 +1,14 @@
 use std::io;
 use std::io::prelude::*;
 use colored::*;
+use std::fmt;
 use std::mem::size_of;
 
 #[macro_use] extern crate scan_fmt;
 
 
-/*
-// used for page sizing
-
-#define size_of_attribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
-+
-+const uint32_t ID_SIZE = size_of_attribute(Row, id);
-+const uint32_t USERNAME_SIZE = size_of_attribute(Row, username);
-+const uint32_t EMAIL_SIZE = size_of_attribute(Row, email);
-+const uint32_t ID_OFFSET = 0;
-+const uint32_t USERNAME_OFFSET = ID_OFFSET + ID_SIZE;
-+const uint32_t EMAIL_OFFSET = USERNAME_OFFSET + USERNAME_SIZE;
-+const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
-*/
-
 const COLUMN_USERNAME_SIZE: usize = 32;
 const COLUMN_EMAIL_SIZE: usize = 255;
-
-
 
 const ROW_SIZE: usize = size_of::<Row>();
 const PAGE_SIZE: usize = 4096;
@@ -31,14 +16,25 @@ const TABLE_MAX_PAGES: usize =  100;
 const ROWS_PER_PAGE: usize = PAGE_SIZE / ROW_SIZE;
 const TABLE_MAX_ROWS: usize = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
-struct Page {
-
-}
 
 struct Table {
-    num_rows: u32,
-    pages: [Page; 3]
+    num_rows: usize,
+    pages: Vec<Page>
 }
+
+impl Table {
+    fn insert_row(&mut self, row_to_insert: Row){
+        let page_num = self.num_rows / ROWS_PER_PAGE;
+
+        self.pages[page_num].rows.push(row_to_insert);
+        self.pages[page_num].num_rows += 1;
+    }
+}
+
+struct Page {
+    num_rows: usize,
+    rows: Vec<Row> 
+  }
 
 struct Row {
   id: u32,
@@ -49,6 +45,12 @@ struct Row {
 impl Default for Row {
     fn default () -> Row {
         Row { id: 0, username: String::from("nate"), email: String::from("test@test.com")}
+    }
+}
+
+impl fmt::Display for Row {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{} {} {}", self.id, self.username, self.email)
     }
 }
 
@@ -83,6 +85,21 @@ impl Default for Statement {
     }
 }
 
+enum ExecuteResult {
+    EXECUTE_SUCCESS,
+    EXECUTE_FAILURE,
+    EXECUTE_TABLE_FULL
+}
+
+fn new_table() -> Table {
+    Table {
+        num_rows: 0,
+        pages: vec![Page{
+            num_rows: 0,
+            rows: Vec::with_capacity(ROWS_PER_PAGE) 
+        }]
+     } 
+}
 
 fn print_prompt() {
     print!("db > ");
@@ -116,13 +133,6 @@ fn process_prepare_statement(command: &String, statement: &mut Statement) -> Pre
         return PrepareResult::PrepareSuccess; 
     }
 
-    // +    int args_assigned = sscanf(
-// +        input_buffer->buffer, "insert %d %s %s", &(statement->row_to_insert.id),
-// +        statement->row_to_insert.username, statement->row_to_insert.email);
-// +    if (args_assigned < 3) {
-// +      return PREPARE_SYNTAX_ERROR;
-// +    }
-
     if(&command[..6] == "select"){
         statement.statementType = StatementTypes::StatementSelect;
         return PrepareResult::PrepareSuccess; 
@@ -131,23 +141,47 @@ fn process_prepare_statement(command: &String, statement: &mut Statement) -> Pre
     return PrepareResult::PrepareUnrecognized;
 }
 
-fn execute_statement(statement: &Statement) {
+
+
+// Table read / writes 
+fn execute_insert(statement: Statement, table: &mut Table) -> ExecuteResult {
+    if(table.num_rows >= TABLE_MAX_ROWS){
+        return ExecuteResult::EXECUTE_TABLE_FULL;
+    }
+    table.insert_row(statement.row_to_insert);
+    table.num_rows += 1;
+
+    return ExecuteResult::EXECUTE_SUCCESS
+}
+
+fn execute_select(statement: Statement, table: &Table) -> ExecuteResult{
+    for page in table.pages.iter() {
+        for row in page.rows.iter() {
+            print!("{}", row)
+        }
+    }
+
+    return ExecuteResult::EXECUTE_SUCCESS;
+}
+
+fn execute_statement(statement: Statement, table: &mut Table) -> ExecuteResult {
  match statement.statementType {
     StatementTypes::StatementInsert => {
-        println!("This is where we would do an insert");
+        return execute_insert(statement, table)
     },
     StatementTypes::StatementSelect => {
-        println!("This is where we would do a select");
+       return execute_select(statement, table)
     },
     StatementTypes::Unknown => {
         println!("{}! This command is unknown", "Error".red());
+        return ExecuteResult::EXECUTE_FAILURE;
     } 
-    
   }
 }
 
 
 fn main() {
+    let mut table: Table = new_table();
     println!("{}", "Starting Rust DB".green());
 
     while(true){
@@ -169,7 +203,7 @@ fn main() {
             }      
         }
 
-        let mut statement = Statement::default();;
+        let mut statement = Statement::default();
 
         match process_prepare_statement(&user_input, &mut statement) {
             PrepareResult::PrepareSuccess => {
@@ -183,7 +217,16 @@ fn main() {
             }
         } 
 
-        execute_statement(&statement);
-        println!("{}", "Executed".green());
+        match execute_statement(statement, &mut table) {
+            ExecuteResult::EXECUTE_SUCCESS => {
+                println!("{}", "Executed".green());
+            },
+            ExecuteResult::EXECUTE_FAILURE => {
+                println!("{}", "Execution failure".red());
+            },
+            ExecuteResult::EXECUTE_TABLE_FULL => {
+                println!("{}", "Error: Table full".red());
+            }
+        }
     }
 }
