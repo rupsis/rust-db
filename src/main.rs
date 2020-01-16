@@ -4,6 +4,10 @@ use std::io;
 use std::io::prelude::*;
 
 mod table;
+mod commands;
+
+use commands::*;
+use table::*;
 
 #[macro_use]
 extern crate scan_fmt;
@@ -11,48 +15,8 @@ extern crate scan_fmt;
 const COLUMN_USERNAME_SIZE: usize = 32;
 const COLUMN_EMAIL_SIZE: usize = 255;
 
-// const ROW_SIZE: usize = size_of::<table::Row>();
-// const PAGE_SIZE: usize = 4096;
-// const TABLE_MAX_PAGES: usize = 100;
-// const ROWS_PER_PAGE: usize = PAGE_SIZE / ROW_SIZE;
-// const TABLE_MAX_ROWS: usize = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
-enum MetaCommandResult {
-    MetaCommandSuccess,
-    MetaCommandUnrecognized,
-}
 
-enum PrepareResult {
-    PrepareSuccess,
-    PrepareUnrecognized,
-    PrepareSyntaxError,
-}
-
-enum StatementTypes {
-    StatementInsert,
-    StatementSelect,
-    Unknown,
-}
-
-struct Statement {
-    statementType: StatementTypes,
-    row_to_insert: table::Row,
-}
-
-impl Default for Statement {
-    fn default() -> Statement {
-        Statement {
-            statementType: StatementTypes::Unknown,
-            row_to_insert: table::Row::default(),
-        }
-    }
-}
-
-enum ExecuteResult {
-    EXECUTE_SUCCESS,
-    EXECUTE_FAILURE,
-    EXECUTE_TABLE_FULL,
-}
 
 fn print_prompt() {
     print!("db > ");
@@ -112,7 +76,7 @@ fn execute_select(statement: Statement, table: &table::Table) -> ExecuteResult {
     return ExecuteResult::EXECUTE_SUCCESS;
 }
 
-fn execute_statement(statement: Statement, table: &mut table::Table) -> ExecuteResult {
+fn execute_statement(statement: Statement, table: &mut table::Table) -> commands::ExecuteResult {
     match statement.statementType {
         StatementTypes::StatementInsert => return execute_insert(statement, table),
         StatementTypes::StatementSelect => return execute_select(statement, table),
